@@ -6,6 +6,8 @@
 #define IWDG_WRITE_ACCESS   0x5555
 #define IWDG_REFRESH        0xAAAA
 
+#define BAUD 500000        //UART baud rate
+
 extern volatile uint16_t dataSend;
 extern volatile uint8_t send;
 extern volatile uint8_t curMode;

@@ -11,9 +11,9 @@ void rccInit(){
 }
 
 void gpioInit(){
-    GPIOA->MODER |= GPIO_MODER_MODER2_1 |
-                     GPIO_MODER_MODER3_1;                   //A3 and A2 alternate function mode
-    GPIOA->AFR[0] |= 0x00001100;                            //A3 and A2 alternate function mode
+    GPIOA->MODER |= GPIO_MODER_MODER10_1 |
+                    GPIO_MODER_MODER9_1;                   //A10 and A9 alternate function mode	                
+    GPIOA->AFR[1] |= 0x00000110;                            //10 and A9 alternate function mode	
 }
 
 void uartWrite(uint8_t d){
@@ -22,7 +22,7 @@ void uartWrite(uint8_t d){
 }
 
 void uartInit(){
-    USART1->BRR = (F_CPU+2400/2)/2400;                      //2400 boad
+    USART1->BRR = (F_CPU+BAUD/2)/BAUD;                      //2400 boad
     USART1->CR1 = USART_CR1_TE | USART_CR1_RE;              //enable TX and RX
     USART1->CR1 |= USART_CR1_UE;                            //USART enable
     NVIC_SetPriority(USART1_IRQn, 1);                       //set priority uart interrupt 
