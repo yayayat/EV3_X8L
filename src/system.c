@@ -3,6 +3,7 @@
 
 volatile uint16_t dataSend;
 uint16_t data[8];
+volatile uint16_t dataF[8]; //raw data, filtered data
 void rccInit(){
     RCC->AHBENR |= RCC_AHBENR_GPIOAEN | 
                    RCC_AHBENR_DMA1EN;                       //enable GPIOA, DMA1
@@ -29,7 +30,7 @@ void uartInit(){
     NVIC_SetPriority(USART1_IRQn, 1);                       //set priority uart interrupt 
     NVIC_EnableIRQ(USART1_IRQn);                            //enable interrupt
 }
-//! duno y, ADC+DMA only works in discontinuous mode (every conversion has to be triggered)
+
     void adcInit(){
     if ((ADC1->CR & ADC_CR_ADEN) != 0) 
         ADC1->CR |= ADC_CR_ADDIS;                            //If ADC enable then disable 
@@ -41,10 +42,10 @@ void uartInit(){
     
     ADC1->CR = ADC_CR_ADEN;                                  //ADC enable
     while(!(ADC1->ISR & ADC_ISR_ADRDY));                     //Wait then ADC ready 
-    ADC1->SMPR = 0;                                          //Programmable sampling time
-    ADC1->IER |= ADC_IER_EOCIE | ADC_IER_EOSEQIE;            //End of conversion interrupt enable
+    ADC1->SMPR = 1;                                          //Programmable sampling time
+    //ADC1->IER |= ADC_IER_EOCIE | ADC_IER_EOSEQIE;            //End of conversion interrupt enable
     ADC1->CFGR1 = ADC_CFGR1_DMAEN | ADC_CFGR1_DMACFG |
-                  ADC_CFGR1_DISCEN | ADC_CFGR1_EXTEN_0 |     //Trigger detection on the rising edge | external event used to trigger the start of conversion (TRG3)(TIM3_TRGO)
+                  ADC_CFGR1_EXTEN_0 |     //Trigger detection on the rising edge | external event used to trigger the start of conversion (TRG3)(TIM3_TRGO)
                   ADC_CFGR1_EXTSEL_0 | ADC_CFGR1_EXTSEL_1;   //Channel selection 
     ADC1->CHSELR = 0xFF;                                 
 
@@ -53,17 +54,28 @@ void uartInit(){
     DMA1_Channel1->CNDTR = 8;
     DMA1_Channel1->CCR |= DMA_CCR_MINC | DMA_CCR_MSIZE_0 
                        | DMA_CCR_PSIZE_0 
-                       | DMA_CCR_TCIE | DMA_CCR_CIRC;
+                       | DMA_CCR_TCIE | DMA_CCR_CIRC
+                       | DMA_CCR_PL;
     DMA1_Channel1->CCR |= DMA_CCR_EN;
 
     ADC1->CR |= ADC_CR_ADSTART;                              //Starting conversions
+    NVIC_EnableIRQ(DMA1_Channel1_IRQn);
+}
+
+void DMA1_Channel1_IRQHandler(void){
+    static uint32_t acc[8];
+    DMA1->IFCR = DMA_IFCR_CGIF1;
+    for(uint8_t i = 0;i<8;i++){
+        acc[i]+=data[i]-dataF[i];
+        dataF[i]=acc[i]/2048;
+    }
 }
 
 void tim3Init(){
     TIM3->CR1 = TIM_CR1_ARPE;                                //Auto-reload preload enable
     TIM3->CR2 = TIM_CR2_MMS_1;                               //The update event is selected as trigger output
-    TIM3->PSC = 25-1;                                           //Prescaler 
-    TIM3->ARR = 181-1;                                       //Auto-reload register
+    TIM3->PSC = 1-1;                                        //Prescaler 
+    TIM3->ARR = 640-1;                                        //Auto-reload register
     TIM3->CR1 |= TIM_CR1_CEN;                                //Counter enable
 }
 
@@ -76,7 +88,6 @@ void iwdgInit(void){
 }
 
 void sysInit(){
-    xdev_out(uartWrite);
     rccInit();
     gpioInit();
     uartInit();
